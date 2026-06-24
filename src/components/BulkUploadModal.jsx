@@ -953,7 +953,7 @@ import { useState, useRef, useEffect } from "react";
                 {/* ── Search + Ticket Type Filter ───────────────────────────── */}
                 {isValidated && (
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative flex-1 min-w-[220px]">
+                    {/* <div className="relative flex-1 min-w-[220px]">
                       <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
                       <input
                         type="text"
@@ -962,9 +962,9 @@ import { useState, useRef, useEffect } from "react";
                         placeholder="Search by name or email..."
                         className="w-full border rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500"
                       />
-                    </div>
+                    </div> */}
 
-                    <select
+                    {/* <select
                       value={ticketFilter}
                       onChange={(e) => setTicketFilter(e.target.value)}
                       className="border rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-500 min-w-[180px]"
@@ -973,7 +973,7 @@ import { useState, useRef, useEffect } from "react";
                       {ticketTypes.map((tt) => (
                         <option key={tt.id} value={tt.id}>{tt.ticket_name}</option>
                       ))}
-                    </select>
+                    </select> */}
 
                     {reviewLoading && (
                       <FaSpinner className="animate-spin text-purple-500 text-sm shrink-0" />
@@ -1027,8 +1027,8 @@ import { useState, useRef, useEffect } from "react";
                                 ))}
                                 <td className="px-2 py-1">
                                   <select
-                                    value={editData.ticket_type ?? ""}
-                                    onChange={(e) => setEditData((p) => ({ ...p, ticket_typex: e.target.value }))}
+                                    value={String(editData.ticket_type ?? "")}
+                                    onChange={(e) => setEditData((p) => ({ ...p, ticket_type: e.target.value }))}
                                     className="border rounded px-2 py-1 w-full text-xs focus:ring-1 focus:ring-purple-400 outline-none"
                                   >
                                     <option value="" disabled>— select ticket type —</option>

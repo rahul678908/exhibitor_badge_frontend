@@ -21,6 +21,8 @@ import {
 export default function Dashboard() {
   const navigate = useNavigate();
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // ── Modal states ───────────────────────────────────────────────
   const [showModal, setShowModal]                 = useState(false);
   const [showBulkModal, setShowBulkModal]         = useState(false);
@@ -307,12 +309,24 @@ export default function Dashboard() {
     }
   };
 
+  {sidebarOpen && (
+  <div
+    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+    onClick={() => setSidebarOpen(false)}
+  />
+)}
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
+      <div className="flex min-h-screen bg-gray-100 overflow-x-hidden">
 
       {/* ── Sidebar ── */}
-      <aside className="w-64 shrink-0 bg-[#180021] text-white min-h-screen">
-        <div className="p-5 border-b border-purple-900">
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#180021] text-white min-h-screen transform transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0 lg:block`}>
+          {/* Close button — visible only on mobile */}
+          <button className="lg:hidden absolute top-4 right-4 text-white text-xl" onClick={() => setSidebarOpen(false)}>
+            ✕
+          </button>
+          <div className="p-5 border-b border-purple-900">
           <h3 className="text-xs uppercase tracking-wider text-gray-400">Time Remaining</h3>
           <div className="flex justify-between mt-4">
             {[["16","Days"],["17","Hours"],["34","Mins"],["8","Secs"]].map(([val, label]) => (
@@ -336,6 +350,12 @@ export default function Dashboard() {
         {/* Navbar */}
         <header className="bg-purple-800 h-16 px-8 flex items-center justify-between text-white">
           <div className="flex gap-4 items-center">
+            <button
+              className="lg:hidden text-white mr-3"
+              onClick={() => setSidebarOpen(true)}
+            >
+              ☰
+            </button>
             {/* <div className="relative">
               <FaSearch className="absolute top-3.5 left-3 text-gray-300" />
               <input
@@ -362,30 +382,78 @@ export default function Dashboard() {
         <div className="p-6">
 
           {/* Stats Banner */}
-        <div className="rounded-2xl p-6 text-white bg-cover bg-center bg-no-repeat relative overflow-hidden"
-          style={{backgroundImage: "url('/images/banner.jpg')",}}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-8">
-                <div className="bg-white w-16 h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl">🎫</div>
-                <div>
-                  <h2 className="text-4xl font-bold">
-                    {dashboardLoading ? "..." : dashboardData?.confirmed}
-                    <span className="text-lg">/{dashboardLoading ? "..." : dashboardData?.allocated_badges}</span>
-                  </h2>
-                  <p className="text-sm mt-1">Allocated Badges</p>
-                </div>
-                <div className="text-sm space-y-1">
-                  <p>Confirmed {dashboardData?.confirmed || 0}</p>
-                  <p>Pending {dashboardData?.pending || 0}</p>
-                  <p>Invited {dashboardData?.invited || 0}</p>
-                </div>
-              </div>
-              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-green-600 font-bold text-xl">
-                {dashboardLoading ? "..." : dashboardData?.available_badges}
-              </div>
-            </div>
-          </div>
+<div
+  className="rounded-2xl p-6 text-white bg-cover bg-center bg-no-repeat relative overflow-hidden"
+  style={{ backgroundImage: "url('/images/banner.jpg')" }}
+>
+  {/* ── Top row ── */}
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-8">
+      <div className="bg-white w-16 h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl">
+        🎫
+      </div>
+      <div>
+        <h2 className="text-4xl font-bold">
+          {dashboardLoading ? "..." : dashboardData?.confirmed}
+          <span className="text-lg">
+            /{dashboardLoading ? "..." : dashboardData?.allocated_badges}
+          </span>
+        </h2>
+        <p className="text-sm mt-1">Allocated Badges</p>
+      </div>
+      <div className="text-sm space-y-1">
+        <p>Confirmed {dashboardData?.confirmed || 0}</p>
+        <p>Pending   {dashboardData?.pending   || 0}</p>
+        <p>Invited   {dashboardData?.invited   || 0}</p>
+      </div>
+    </div>
 
+    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-green-600 font-bold text-xl">
+      {dashboardLoading ? "..." : dashboardData?.available_badges}
+    </div>
+  </div>
+
+  {/* ── Ticket balance breakdown ── */}
+  {!dashboardLoading && dashboardData?.ticket_breakdown?.length > 0 && (
+    <div className="mt-5 border-t border-white/30 pt-4 flex flex-wrap gap-3">
+      {dashboardData.ticket_breakdown.map((tt) => {
+        const pct = tt.allocated > 0
+          ? Math.round((tt.used / tt.allocated) * 100)
+          : 0;
+        const low = tt.available <= 5;
+
+        return (
+          <div key={tt.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 min-w-[160px] flex-1">
+
+            {/* ticket name */}
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70 truncate">
+              {tt.ticket_name}
+            </p>
+
+            {/* big available number */}
+            <p className={`text-2xl font-bold mt-1 ${low ? "text-red-300" : "text-green-300"}`}>
+              {tt.available}
+              <span className="text-sm font-normal text-white/60"> / {tt.allocated}</span>
+            </p>
+
+            {/* progress bar */}
+            <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: low ? "#f87171" : "#4ade80",
+                }}
+              />
+            </div>
+
+            <p className="text-xs text-white/50 mt-1">{tt.used} used</p>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
           {/* Cards */}
           <div className="grid md:grid-cols-3 gap-6 mt-8">
             <div className="bg-white rounded-2xl shadow p-8">

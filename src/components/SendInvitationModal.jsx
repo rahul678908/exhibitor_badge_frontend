@@ -51,6 +51,10 @@ export default function SendInvitationModal({ onClose, onSuccess }) {
   };
 
   const updateEntry = (idx, field, value) => {
+      const textOnlyFields = ["first_name", "last_name"];
+      if (textOnlyFields.includes(field) && /\d/.test(value)) return;
+
+
     setEntries((prev) =>
       prev.map((e, i) => (i === idx ? { ...e, [field]: value } : e))
     );

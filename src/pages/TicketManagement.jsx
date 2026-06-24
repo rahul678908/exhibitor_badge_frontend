@@ -18,6 +18,36 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// ─── Validation helpers ─────────────────────────────────────────────────
+const TICKET_CODE_REGEX = /^[A-Za-z0-9_-]+$/; // adjust if backend allows other chars
+
+const escapeHtml = (str = "") =>
+  String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+const validateTicketForm = ({ ticket_name, ticket_code, total_tickets_raw }) => {
+  if (!ticket_name.trim()) return "Ticket name is required.";
+  if (!ticket_code.trim()) return "Ticket code is required.";
+  if (!TICKET_CODE_REGEX.test(ticket_code.trim()))
+    return "Ticket code can only contain letters, numbers, hyphens, and underscores.";
+  if (!total_tickets_raw.trim()) return "Total tickets is required.";
+  if (!/^\d+$/.test(total_tickets_raw.trim()))
+    return "Total tickets must be a whole positive number.";
+  if (parseInt(total_tickets_raw, 10) < 1)
+    return "Total tickets must be at least 1.";
+  return null;
+};
+
+const getApiErrorMessage = (error, fallback) =>
+  error?.response?.data?.ticket_code?.[0] ||
+  error?.response?.data?.ticket_name?.[0] ||
+  error?.response?.data?.error ||
+  error?.response?.data?.detail ||
+  fallback;
+
 const TicketManagement = () => {
   const [tickets, setTickets] = useState([]);
   const [search, setSearch] = useState("");
@@ -45,13 +75,31 @@ const TicketManagement = () => {
       html: `
         <input id="ticket_name" class="swal2-input" placeholder="Ticket Name">
         <input id="ticket_code" class="swal2-input" placeholder="Ticket Code">
+        <input id="total_tickets" type="number" min="1" class="swal2-input" placeholder="Total Tickets">
         <textarea id="description" class="swal2-textarea" placeholder="Description"></textarea>
       `,
-      preConfirm: () => ({
-        ticket_name: document.getElementById("ticket_name").value,
-        ticket_code: document.getElementById("ticket_code").value,
-        description: document.getElementById("description").value,
-      }),
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Create",
+      preConfirm: () => {
+        const ticket_name = document.getElementById("ticket_name").value;
+        const ticket_code = document.getElementById("ticket_code").value;
+        const total_tickets_raw = document.getElementById("total_tickets").value;
+        const description = document.getElementById("description").value;
+
+        const error = validateTicketForm({ ticket_name, ticket_code, total_tickets_raw });
+        if (error) {
+          Swal.showValidationMessage(error);
+          return false; // keeps the dialog open
+        }
+
+        return {
+          ticket_name: ticket_name.trim(),
+          ticket_code: ticket_code.trim(),
+          total_tickets: parseInt(total_tickets_raw, 10),
+          description: description.trim(),
+        };
+      },
     });
 
     if (!value) return;
@@ -60,8 +108,8 @@ const TicketManagement = () => {
       await TicketService.createTicket(value);
       Swal.fire("Success", "Ticket created successfully", "success");
       loadTickets();
-    } catch {
-      Swal.fire("Error", "Failed to create ticket", "error");
+    } catch (error) {
+      Swal.fire("Error", getApiErrorMessage(error, "Failed to create ticket"), "error");
     }
   };
 
@@ -69,13 +117,39 @@ const TicketManagement = () => {
     const { value } = await Swal.fire({
       title: "Edit Ticket",
       html: `
-        <input id="ticket_name" class="swal2-input" value="${ticket.ticket_name}">
-        <textarea id="description" class="swal2-textarea">${ticket.description || ""}</textarea>
+        <input id="ticket_name" class="swal2-input" placeholder="Ticket Name" value="${escapeHtml(ticket.ticket_name)}">
+        <input id="ticket_code" class="swal2-input" placeholder="Ticket Code" value="${escapeHtml(ticket.ticket_code)}">
+        <input id="total_tickets" type="number" min="1" class="swal2-input" placeholder="Total Tickets" value="${ticket.total_tickets ?? 0}">
+        <select id="status" class="swal2-select" style="display:block;width:100%;margin:0.5em auto;padding:0.5em;border-radius:0.25em;border:1px solid #d9d9d9;">
+          <option value="active" ${ticket.status === "active" ? "selected" : ""}>Active</option>
+          <option value="inactive" ${ticket.status !== "active" ? "selected" : ""}>Inactive</option>
+        </select>
+        <textarea id="description" class="swal2-textarea" placeholder="Description">${escapeHtml(ticket.description || "")}</textarea>
       `,
-      preConfirm: () => ({
-        ticket_name: document.getElementById("ticket_name").value,
-        description: document.getElementById("description").value,
-      }),
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: "Save",
+      preConfirm: () => {
+        const ticket_name = document.getElementById("ticket_name").value;
+        const ticket_code = document.getElementById("ticket_code").value;
+        const total_tickets_raw = document.getElementById("total_tickets").value;
+        const description = document.getElementById("description").value;
+        const status = document.getElementById("status").value;
+
+        const error = validateTicketForm({ ticket_name, ticket_code, total_tickets_raw });
+        if (error) {
+          Swal.showValidationMessage(error);
+          return false;
+        }
+
+        return {
+          ticket_name: ticket_name.trim(),
+          ticket_code: ticket_code.trim(),
+          total_tickets: parseInt(total_tickets_raw, 10),
+          description: description.trim(),
+          status,
+        };
+      },
     });
 
     if (!value) return;
@@ -84,8 +158,8 @@ const TicketManagement = () => {
       await TicketService.updateTicket(ticket.id, value);
       Swal.fire("Updated", "Ticket updated", "success");
       loadTickets();
-    } catch {
-      Swal.fire("Error", "Update failed", "error");
+    } catch (error) {
+      Swal.fire("Error", getApiErrorMessage(error, "Update failed"), "error");
     }
   };
 
@@ -194,7 +268,7 @@ const TicketManagement = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                {["Name", "Code", "Status", "Actions"].map((h) => (
+                {["Name", "Code", "Total Tickets", , "Status", "Actions"].map((h) => (
                   <th
                     key={h}
                     className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
@@ -210,6 +284,9 @@ const TicketManagement = () => {
                 <tr key={ticket.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3.5 font-medium text-slate-800">{ticket.ticket_name}</td>
                   <td className="px-5 py-3.5 text-slate-500">{ticket.ticket_code}</td>
+                  <td className="px-5 py-3.5 font-semibold text-blue-600">
+                    {ticket.total_tickets}
+                  </td>
                   <td className="px-5 py-3.5">
                     <StatusBadge status={ticket.status} />
                   </td>
