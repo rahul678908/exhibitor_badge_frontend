@@ -18,27 +18,65 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// ─── Shared form HTML for create / edit ──────────────────────────────────────
-const exhibitorFormHtml = (defaults = {}) => `
+// ─── Validation ───────────────────────────────────────────────────────────────
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[+\d\s\-()]{7,20}$/;
+const NAME_REGEX = /^[a-zA-Z\s'\-\.]+$/;
+
+const validateExhibitorForm = ({ username, password, company_name, contact_person, contact_email, contact_phone }, isEdit = false) => {
+  if (!username.trim())                          return "Username is required.";
+  if (username.trim().length < 3)                return "Username must be at least 3 characters.";
+  if (!isEdit && !password)                      return "Password is required.";
+  if (!isEdit && password.length < 6)            return "Password must be at least 6 characters.";
+  if (isEdit && password && password.length < 6) return "New password must be at least 6 characters.";
+  if (!company_name.trim())                      return "Company name is required.";
+  if (/\d/.test(company_name))                   return "Company name must not contain numbers.";  // ✅
+  if (!contact_person.trim())                    return "Contact person is required.";
+  if (!NAME_REGEX.test(contact_person.trim()))   return "Contact person name must contain letters only.";  // ✅
+  if (!contact_email.trim())                     return "Contact email is required.";
+  if (!EMAIL_REGEX.test(contact_email.trim()))   return "Enter a valid email address.";
+  if (!contact_phone.trim())                     return "Contact phone is required.";
+  if (!PHONE_REGEX.test(contact_phone.trim()))   return "Enter a valid phone number.";
+  return null;
+};
+
+// ─── Error message extractor ──────────────────────────────────────────────────
+const getServiceErrorMessage = (error, fallback) => {
+  if (typeof error === "string") return error;
+  return (
+    error?.username?.[0]         ||
+    error?.password?.[0]         ||
+    error?.company_name?.[0]     ||
+    error?.contact_email?.[0]    ||
+    error?.contact_phone?.[0]    ||
+    error?.non_field_errors?.[0] ||
+    error?.error                 ||
+    error?.detail                ||
+    error?.message               ||
+    fallback
+  );
+};
+
+// ─── Shared form HTML ─────────────────────────────────────────────────────────
+const exhibitorFormHtml = (defaults = {}, isEdit = false) => `
   <input id="username"       class="swal2-input" placeholder="Username"       value="${defaults.username       ?? ""}">
-  <input id="password"       class="swal2-input" placeholder="Password${defaults.username ? " (leave blank to keep)" : ""}" type="password">
+  <input id="password"       class="swal2-input" placeholder="Password${isEdit ? " (leave blank to keep)" : ""}" type="password">
   <input id="company_name"   class="swal2-input" placeholder="Company Name"   value="${defaults.company_name   ?? ""}">
   <input id="contact_person" class="swal2-input" placeholder="Contact Person" value="${defaults.contact_person ?? ""}">
   <input id="contact_email"  class="swal2-input" placeholder="Contact Email"  value="${defaults.contact_email  ?? ""}">
   <input id="contact_phone"  class="swal2-input" placeholder="Contact Phone"  value="${defaults.contact_phone  ?? ""}">
 `;
 
-const collectFormValues = (includePassword = true) => {
-  const values = {
+const collectFormValues = () => {
+  const password = document.getElementById("password").value;
+  return {
     username:       document.getElementById("username").value,
     company_name:   document.getElementById("company_name").value,
     contact_person: document.getElementById("contact_person").value,
     contact_email:  document.getElementById("contact_email").value,
     contact_phone:  document.getElementById("contact_phone").value,
+    password,
   };
-  const pwd = document.getElementById("password").value;
-  if (includePassword || pwd) values.password = pwd;
-  return values;
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -52,7 +90,7 @@ const ExhibitorManagement = () => {
       const data = await exhibitorService.getExhibitors();
       setExhibitors(Array.isArray(data) ? data : data?.results || []);
     } catch (error) {
-      Swal.fire("Error", error?.detail || "Failed to load exhibitors", "error");
+      Swal.fire("Error", getServiceErrorMessage(error, "Failed to load exhibitors"), "error");
     } finally {
       setLoading(false);
     }
@@ -62,15 +100,25 @@ const ExhibitorManagement = () => {
     loadExhibitors();
   }, []);
 
+  // ─── Create ────────────────────────────────────────────────────────────────
   const createExhibitor = async () => {
     const { value: formValues } = await Swal.fire({
       title: "Create Exhibitor",
       width: 700,
-      html: exhibitorFormHtml(),
+      html: exhibitorFormHtml({}, false),
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: "Create",
-      preConfirm: () => collectFormValues(true),
+      preConfirm: () => {
+        const values = collectFormValues();
+        const error = validateExhibitorForm(values, false);
+        if (error) {
+          Swal.showValidationMessage(error);
+          return false;
+        }
+        if (!values.password) delete values.password;
+        return values;
+      },
     });
 
     if (!formValues) return;
@@ -81,10 +129,11 @@ const ExhibitorManagement = () => {
       Swal.fire("Created!", "Exhibitor created successfully.", "success");
       loadExhibitors();
     } catch (error) {
-      Swal.fire("Error", error?.detail || "Creation failed", "error");
+      Swal.fire("Error", getServiceErrorMessage(error, "Creation failed"), "error");
     }
   };
 
+  // ─── View ──────────────────────────────────────────────────────────────────
   const viewExhibitor = async (id) => {
     try {
       const data = await exhibitorService.getExhibitor(id);
@@ -100,37 +149,95 @@ const ExhibitorManagement = () => {
           </div>`,
         confirmButtonText: "Close",
       });
-    } catch {
-      Swal.fire("Error", "Failed to load details", "error");
+    } catch (error) {
+      Swal.fire("Error", getServiceErrorMessage(error, "Failed to load details"), "error");
     }
   };
 
+  // ─── Delete ────────────────────────────────────────────────────────────────
   const deleteExhibitor = async (item) => {
+
+    // Step 1 — fetch full details to show real data counts in the warning
+    let detail = null;
+    try {
+      detail = await exhibitorService.getExhibitor(item.id);
+    } catch {
+      // If detail fetch fails, proceed with basic info we already have
+      detail = item;
+    }
+
+    const registrations  = detail?.registration_count  ?? detail?.registrations  ?? 0;
+    const activeBadges   = detail?.active_badge_count   ?? detail?.active_badges   ?? 0;
+    const invitations    = detail?.invitation_count     ?? detail?.invitations     ?? 0;
+
+    const hasData = registrations > 0 || activeBadges > 0 || invitations > 0;
+
+    // Step 2 — build a detailed warning based on what's inside the account
+    const dataWarningHtml = hasData
+      ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin:12px 0;text-align:left;">
+          <p style="font-weight:600;color:#dc2626;margin-bottom:8px;">⚠️ This account contains active data:</p>
+          <ul style="margin:0;padding-left:18px;color:#7f1d1d;line-height:2;">
+            ${registrations  > 0 ? `<li><b>${registrations}</b> registration(s)</li>`    : ""}
+            ${activeBadges   > 0 ? `<li><b>${activeBadges}</b> active badge(s)</li>`     : ""}
+            ${invitations    > 0 ? `<li><b>${invitations}</b> invitation(s)</li>`        : ""}
+          </ul>
+          <p style="color:#b91c1c;margin-top:8px;font-size:0.85em;">
+            All badges registered under this exhibitor will be <b>permanently removed</b>.
+            Invited attendees will lose access to their registration links.
+            <b>This cannot be undone.</b>
+          </p>
+        </div>`
+      : ``;
+
+    // Step 3 — show the confirmation modal with full context
     const { isConfirmed } = await Swal.fire({
-      title: "Delete Exhibitor?",
-      text: `This will permanently remove "${item.company_name}".`,
+      title: `Delete "${item.company_name}"?`,
       icon: "warning",
+      html: `
+        <div style="text-align:left;">
+          <p style="color:#374151;">You are about to permanently delete this exhibitor account:</p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:10px 0;">
+            <p style="margin:4px 0;"><b>Company:</b> ${item.company_name}</p>
+            <p style="margin:4px 0;"><b>Contact:</b> ${item.contact_person}</p>
+            <p style="margin:4px 0;"><b>Email:</b> ${item.contact_email}</p>
+          </div>
+          ${dataWarningHtml}
+          <p style="color:#374151;font-weight:500;margin-top:8px;">
+            Are you sure you want to proceed? Please review carefully before confirming.
+          </p>
+        </div>
+      `,
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
-      confirmButtonText: "Yes, delete",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, delete permanently",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+      width: 520,
     });
 
     if (!isConfirmed) return;
 
+    // Step 4 — perform deletion
     try {
       Swal.fire({ title: "Deleting...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       await exhibitorService.deleteExhibitor(item.id);
-      Swal.fire("Deleted!", "Exhibitor has been removed.", "success");
+      Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: "Exhibitor and all associated data have been permanently removed.",
+      });
       loadExhibitors();
     } catch (error) {
-      Swal.fire("Error", error?.detail || "Deletion failed", "error");
+      Swal.fire("Error", getServiceErrorMessage(error, "Deletion failed"), "error");
     }
   };
 
   const stats = [
-    { label: "Total",    value: exhibitors.length,                                       color: "text-slate-700"  },
-    { label: "Active",   value: exhibitors.filter((e) => e.status === "active").length,  color: "text-emerald-600"},
-    { label: "Inactive", value: exhibitors.filter((e) => e.status !== "active").length,   color: "text-red-500"   },
+    { label: "Total",    value: exhibitors.length,                                      color: "text-slate-700"  },
+    { label: "Active",   value: exhibitors.filter((e) => e.status === "active").length, color: "text-emerald-600"},
+    { label: "Inactive", value: exhibitors.filter((e) => e.status !== "active").length, color: "text-red-500"    },
   ];
 
   return (

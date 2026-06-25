@@ -41,12 +41,19 @@ const validateTicketForm = ({ ticket_name, ticket_code, total_tickets_raw }) => 
   return null;
 };
 
-const getApiErrorMessage = (error, fallback) =>
-  error?.response?.data?.ticket_code?.[0] ||
-  error?.response?.data?.ticket_name?.[0] ||
-  error?.response?.data?.error ||
-  error?.response?.data?.detail ||
-  fallback;
+// ✅ TicketService throws response.data directly (an object), not an axios error.
+// So we read .error / .detail / .message directly — no .response.data nesting.
+const getServiceErrorMessage = (error, fallback) => {
+  if (typeof error === "string") return error;
+  return (
+    error?.error ||
+    error?.detail ||
+    error?.message ||
+    error?.ticket_code?.[0] ||
+    error?.ticket_name?.[0] ||
+    fallback
+  );
+};
 
 const TicketManagement = () => {
   const [tickets, setTickets] = useState([]);
@@ -59,7 +66,7 @@ const TicketManagement = () => {
       const data = await TicketService.getTickets();
       setTickets(Array.isArray(data) ? data : data?.results || []);
     } catch (error) {
-      Swal.fire("Error", "Failed to load tickets", "error");
+      Swal.fire("Error", getServiceErrorMessage(error, "Failed to load tickets"), "error");
     } finally {
       setLoading(false);
     }
@@ -109,15 +116,11 @@ const TicketManagement = () => {
       Swal.fire("Success", "Ticket created successfully", "success");
       loadTickets();
     } catch (error) {
-      Swal.fire("Error", getApiErrorMessage(error, "Failed to create ticket"), "error");
+      Swal.fire("Error", getServiceErrorMessage(error, "Failed to create ticket"), "error");
     }
   };
 
   const editTicket = async (ticket) => {
-    // ✅ FIX 1: Safely resolve description regardless of which field name the API returns.
-    // Using nullish coalescing (??) so an empty string ("") is preserved as-is.
-    // Falling back to "" prevents the string "undefined" or "null" from appearing
-    // in the textarea via template literal interpolation.
     const existingDescription = ticket.description ?? ticket.ticket_description ?? "";
 
     const { value } = await Swal.fire({
@@ -139,7 +142,6 @@ const TicketManagement = () => {
         const ticket_name = document.getElementById("ticket_name").value;
         const ticket_code = document.getElementById("ticket_code").value;
         const total_tickets_raw = document.getElementById("total_tickets").value;
-        // ✅ FIX 2: description is optional — never block submission because it's empty.
         const description = document.getElementById("description").value;
         const status = document.getElementById("status").value;
 
@@ -153,8 +155,6 @@ const TicketManagement = () => {
           ticket_name: ticket_name.trim(),
           ticket_code: ticket_code.trim(),
           total_tickets: parseInt(total_tickets_raw, 10),
-          // ✅ FIX 3: Send empty string when description is blank, not null/undefined,
-          // so the API receives a valid (optional) string field.
           description: description.trim(),
           status,
         };
@@ -165,10 +165,11 @@ const TicketManagement = () => {
 
     try {
       await TicketService.updateTicket(ticket.id, value);
-      Swal.fire("Updated", "Ticket updated", "success");
+      Swal.fire("Updated", "Ticket updated successfully", "success");
       loadTickets();
     } catch (error) {
-      Swal.fire("Error", getApiErrorMessage(error, "Update failed"), "error");
+      // ✅ Shows: "Cannot reduce total tickets to X. Y badges already registered."
+      Swal.fire("Error", getServiceErrorMessage(error, "Update failed"), "error");
     }
   };
 
@@ -188,8 +189,9 @@ const TicketManagement = () => {
       await TicketService.deleteTicket(id);
       Swal.fire("Deleted", "Ticket deleted", "success");
       loadTickets();
-    } catch {
-      Swal.fire("Error", "Delete failed", "error");
+    } catch (error) {
+      // ✅ Shows: "Cannot deactivate 'VIP'. 5 badge(s) already registered."
+      Swal.fire("Error", getServiceErrorMessage(error, "Delete failed"), "error");
     }
   };
 
@@ -293,9 +295,7 @@ const TicketManagement = () => {
                 <tr key={ticket.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3.5 font-medium text-slate-800">{ticket.ticket_name}</td>
                   <td className="px-5 py-3.5 text-slate-500">{ticket.ticket_code}</td>
-                  <td className="px-5 py-3.5 font-semibold text-blue-600">
-                    {ticket.total_tickets}
-                  </td>
+                  <td className="px-5 py-3.5 font-semibold text-blue-600">{ticket.total_tickets}</td>
                   <td className="px-5 py-3.5">
                     <StatusBadge status={ticket.status} />
                   </td>

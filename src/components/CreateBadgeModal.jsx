@@ -545,15 +545,18 @@ export default function CreateBadgeModal({ onClose, editData, onSuccess }) {
                 </div>
 
                 {/* Ticket Type */}
-                <div>
-                  <label className="font-semibold">Ticket Type *</label>
-                  <select
+            <div>
+              <label className="font-semibold">Ticket Type *</label>
+                <select
                     name="ticket_type"
                     value={formData.ticket_type}
                     onChange={handleChange}
-                    className={`w-full border rounded-md p-3 mt-2 ${errors.ticket_type ? "border-red-400" : ""}`}
+                    disabled={!!editData}
+                    className={`w-full border rounded-md p-3 mt-2 ${
+                      editData ? "bg-gray-100 cursor-not-allowed text-gray-500" : ""
+                    } ${errors.ticket_type ? "border-red-400" : ""}`}
                   >
-                    <option value="">Select Ticket Type</option>
+                        <option value="">Select Ticket Type</option>
                     {tickets.map((ticket) => {
                       const exhausted =
                         ticket.available_count !== null && ticket.available_count <= 0;
@@ -575,8 +578,8 @@ export default function CreateBadgeModal({ onClose, editData, onSuccess }) {
                   </select>
 
                   {/* Inline ticket availability warning */}
-                  {selectedTicket && selectedTicket.available_count !== null && (
-                    selectedTicket.available_count <= 0 ? (
+                  {!editData && selectedTicket && selectedTicket.available_count !== null && (
+                      selectedTicket.available_count <= 0 ? (
                       <p className="text-red-500 text-xs mt-1">No badges available for this ticket type.</p>
                     ) : selectedTicket.available_count <= 5 ? (
                       <p className="text-amber-500 text-xs mt-1">

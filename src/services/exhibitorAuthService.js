@@ -34,6 +34,7 @@ class ExhibitorAuthService {
       return {
         status: false,
         message:
+          error.response?.data?.message ||  // ✅ your backend uses "message" not "detail"
           error.response?.data?.detail ||
           "Login failed",
       };

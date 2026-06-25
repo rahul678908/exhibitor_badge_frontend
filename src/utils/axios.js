@@ -29,17 +29,13 @@
   api.interceptors.response.use(
     (response) => response,
     (error) => {
+      const isLoginRequest = error.config?.url?.includes("login");
 
-      if (error.response && error.response.status === 401) {
-
-        // ✅ Redirect to the correct login page based on which token was in use
+      // ✅ Never redirect on login endpoints — wrong credentials is handled by the form
+      if (error.response?.status === 401 && !isLoginRequest) {
         const isExhibitor = localStorage.getItem("exhibitor_access_token");
-
         localStorage.clear();
-
-        window.location.href = isExhibitor
-          ? "/exhibitor-login"
-          : "/login";
+        window.location.href = isExhibitor ? "/exhibitor-login" : "/login";
       }
 
       return Promise.reject(error);
