@@ -19,7 +19,7 @@ const StatusBadge = ({ status }) => {
 };
 
 // ─── Validation helpers ─────────────────────────────────────────────────
-const TICKET_CODE_REGEX = /^[A-Za-z0-9_-]+$/; // adjust if backend allows other chars
+const TICKET_CODE_REGEX = /^[A-Za-z0-9_-]+$/;
 
 const escapeHtml = (str = "") =>
   String(str)
@@ -76,7 +76,7 @@ const TicketManagement = () => {
         <input id="ticket_name" class="swal2-input" placeholder="Ticket Name">
         <input id="ticket_code" class="swal2-input" placeholder="Ticket Code">
         <input id="total_tickets" type="number" min="1" class="swal2-input" placeholder="Total Tickets">
-        <textarea id="description" class="swal2-textarea" placeholder="Description"></textarea>
+        <textarea id="description" class="swal2-textarea" placeholder="Description (optional)"></textarea>
       `,
       focusConfirm: false,
       showCancelButton: true,
@@ -90,7 +90,7 @@ const TicketManagement = () => {
         const error = validateTicketForm({ ticket_name, ticket_code, total_tickets_raw });
         if (error) {
           Swal.showValidationMessage(error);
-          return false; // keeps the dialog open
+          return false;
         }
 
         return {
@@ -114,6 +114,12 @@ const TicketManagement = () => {
   };
 
   const editTicket = async (ticket) => {
+    // ✅ FIX 1: Safely resolve description regardless of which field name the API returns.
+    // Using nullish coalescing (??) so an empty string ("") is preserved as-is.
+    // Falling back to "" prevents the string "undefined" or "null" from appearing
+    // in the textarea via template literal interpolation.
+    const existingDescription = ticket.description ?? ticket.ticket_description ?? "";
+
     const { value } = await Swal.fire({
       title: "Edit Ticket",
       html: `
@@ -124,7 +130,7 @@ const TicketManagement = () => {
           <option value="active" ${ticket.status === "active" ? "selected" : ""}>Active</option>
           <option value="inactive" ${ticket.status !== "active" ? "selected" : ""}>Inactive</option>
         </select>
-        <textarea id="description" class="swal2-textarea" placeholder="Description">${escapeHtml(ticket.description || "")}</textarea>
+        <textarea id="description" class="swal2-textarea" placeholder="Description (optional)">${escapeHtml(existingDescription)}</textarea>
       `,
       focusConfirm: false,
       showCancelButton: true,
@@ -133,6 +139,7 @@ const TicketManagement = () => {
         const ticket_name = document.getElementById("ticket_name").value;
         const ticket_code = document.getElementById("ticket_code").value;
         const total_tickets_raw = document.getElementById("total_tickets").value;
+        // ✅ FIX 2: description is optional — never block submission because it's empty.
         const description = document.getElementById("description").value;
         const status = document.getElementById("status").value;
 
@@ -146,6 +153,8 @@ const TicketManagement = () => {
           ticket_name: ticket_name.trim(),
           ticket_code: ticket_code.trim(),
           total_tickets: parseInt(total_tickets_raw, 10),
+          // ✅ FIX 3: Send empty string when description is blank, not null/undefined,
+          // so the API receives a valid (optional) string field.
           description: description.trim(),
           status,
         };
@@ -268,7 +277,7 @@ const TicketManagement = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
-                {["Name", "Code", "Total Tickets", , "Status", "Actions"].map((h) => (
+                {["Name", "Code", "Total Tickets", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
                     className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
