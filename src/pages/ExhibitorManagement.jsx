@@ -19,27 +19,51 @@ const StatusBadge = ({ status }) => {
 };
 
 // ─── Validation ───────────────────────────────────────────────────────────────
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[+\d\s\-()]{7,20}$/;
-const NAME_REGEX = /^[a-zA-Z\s'\-\.]+$/;
+const NAME_REGEX    = /^[a-zA-Z\s'\-\.]+$/;
+const EMAIL_REGEX   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX   = /^\+?\d{7,15}$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
-const validateExhibitorForm = ({ username, password, company_name, contact_person, contact_email, contact_phone }, isEdit = false) => {
-  if (!username.trim())                          return "Username is required.";
-  if (username.trim().length < 3)                return "Username must be at least 3 characters.";
-  if (!isEdit && !password)                      return "Password is required.";
-  if (!isEdit && password.length < 6)            return "Password must be at least 6 characters.";
-  if (isEdit && password && password.length < 6) return "New password must be at least 6 characters.";
-  if (!company_name.trim())                      return "Company name is required.";
-  if (/\d/.test(company_name))                   return "Company name must not contain numbers.";  // ✅
-  if (!contact_person.trim())                    return "Contact person is required.";
-  if (!NAME_REGEX.test(contact_person.trim()))   return "Contact person name must contain letters only.";  // ✅
-  if (!contact_email.trim())                     return "Contact email is required.";
-  if (!EMAIL_REGEX.test(contact_email.trim()))   return "Enter a valid email address.";
-  if (!contact_phone.trim())                     return "Contact phone is required.";
-  if (!PHONE_REGEX.test(contact_phone.trim()))   return "Enter a valid phone number.";
+const validateExhibitorForm = (
+  { username, password, company_name, contact_person, contact_email, contact_phone },
+  isEdit = false
+) => {
+  // Username
+  if (!username.trim())                            return "Username is required.";
+  if (username.trim().length < 3)                  return "Username must be at least 3 characters.";
+  if (/\s/.test(username.trim()))                  return "Username must not contain spaces.";
+  if (!USERNAME_REGEX.test(username.trim()))        return "Username can only contain letters, numbers, and underscores.";
+
+  // Password
+  if (!isEdit && !password)                        return "Password is required.";
+  if (!isEdit && password.length < 6)              return "Password must be at least 6 characters.";
+  if (!isEdit && /^\d+$/.test(password))           return "Password cannot be all numbers.";
+  if (!isEdit && password === username.trim())      return "Password cannot be the same as username.";
+  if (isEdit && password && password.length < 6)   return "New password must be at least 6 characters.";
+
+  // Company Name
+  if (!company_name.trim())                        return "Company name is required.";
+  if (/\d/.test(company_name))                     return "Company name must not contain numbers.";
+  if (company_name.trim().length < 2)              return "Company name must be at least 2 characters.";
+  if (company_name.trim().length > 150)            return "Company name must be under 150 characters.";
+
+  // Contact Person
+  if (!contact_person.trim())                      return "Contact person is required.";
+  if (!NAME_REGEX.test(contact_person.trim()))      return "Contact person name must contain letters only.";
+  if (contact_person.trim().length < 2)            return "Contact person must be at least 2 characters.";
+  if (contact_person.trim().length > 100)          return "Contact person name is too long.";
+
+  // Contact Email
+  if (!contact_email.trim())                       return "Contact email is required.";
+  if (!EMAIL_REGEX.test(contact_email.trim()))      return "Enter a valid email address.";
+  if (contact_email.trim().length > 254)           return "Email address is too long.";
+
+  // Contact Phone
+  if (!contact_phone.trim())                       return "Contact phone is required.";
+  if (!PHONE_REGEX.test(contact_phone.trim()))      return "Enter a valid phone number (7–15 digits).";
+
   return null;
 };
-
 // ─── Error message extractor ──────────────────────────────────────────────────
 const getServiceErrorMessage = (error, fallback) => {
   if (typeof error === "string") return error;
