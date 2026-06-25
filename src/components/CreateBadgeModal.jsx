@@ -145,18 +145,28 @@ export default function CreateBadgeModal({ onClose, editData, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
   // ── 1. Load tickets on mount ──────────────────────────────────────────────
-  useEffect(() => {
+useEffect(() => {
     (async () => {
-      try {
-        const data = await TicketService.getTickets();
-        setTickets(data.filter((t) => t.status === "active"));
-      } catch (err) {
-        console.error("Failed to load tickets", err);
-      } finally {
-        setTicketsLoaded(true);
-      }
+        try {
+            const data = await TicketService.getMyAllocations();
+            // Remap allocation fields to what the component expects
+            const mapped = data
+                .filter((a) => a.available_count > 0 || editData) // hide exhausted in create mode
+                .map((a) => ({
+                    id: a.ticket_type,           // ticket_type is the FK id
+                    ticket_name: a.ticket_name,
+                    ticket_code: a.ticket_code,
+                    available_count: a.available_count,
+                    status: "active",
+                }));
+            setTickets(mapped);
+        } catch (err) {
+            console.error("Failed to load allocations", err);
+        } finally {
+            setTicketsLoaded(true);
+        }
     })();
-  }, []);
+}, []);
 
   // ── 2. Populate form once BOTH editData and tickets are ready ────────────
   useEffect(() => {

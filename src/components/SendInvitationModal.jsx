@@ -34,9 +34,17 @@ export default function SendInvitationModal({ onClose, onSuccess }) {
 
   // Load ticket types
   useEffect(() => {
-    api.get("admin/tickets/").then((res) => {
-      setTickets(res.data.filter((t) => t.status === "active"));
-    }).catch(() => {});
+      api.get("exhibitor/my-allocations/").then((res) => {
+          const mapped = res.data
+              .filter((a) => a.available_count > 0)
+              .map((a) => ({
+                  id: a.ticket_type,
+                  ticket_name: a.ticket_name,
+                  available_count: a.available_count,
+                  status: "active",
+              }));
+          setTickets(mapped);
+      }).catch(() => {});
   }, []);
 
   // ── Entry management ─────────────────────────────────────────────
@@ -327,9 +335,9 @@ export default function SendInvitationModal({ onClose, onSuccess }) {
                     >
                       <option value="">Select Ticket</option>
                       {tickets.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.ticket_name}
-                        </option>
+                          <option key={t.id} value={t.id}>
+                              {t.ticket_name} ({t.available_count} available)
+                          </option>
                       ))}
                     </select>
                     <FieldError message={rowErrors.ticket_type_id} />

@@ -19,7 +19,7 @@ function App() {
         <Route path="/" element={<LoginSelector />} />
         <Route path="/login" element={<AdminLogin />} />
         <Route path="/exhibitor-login" element={<ExhibitorLogin />} />
-        <Route path="/register/:token" element={<RegisterPage />} />
+        <Route path="register/:token" element={<RegisterPage />} />
 
         {/* ✅ Exhibitor protected routes */}
         <Route element={<ProtectedRoute tokenKey="exhibitor_access_token" redirectTo="/exhibitor-login" />}>

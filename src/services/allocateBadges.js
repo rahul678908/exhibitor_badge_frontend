@@ -18,6 +18,15 @@ class TicketService {
         }
     }
 
+    async getMyAllocations() {
+    try {
+        const response = await api.get("exhibitor/my-allocations/");
+        return response.data;
+    } catch (error) {
+        throw (error.response?.data || error.message);
+    }
+}
+
     async getTicket(id) {
         try {
             const response = await api.get(

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Building2, Lock, User } from "lucide-react";
 import ExhibitorAuthService from "../services/exhibitorAuthService";
 
@@ -18,11 +19,12 @@ const ExhibitorLogin = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear the field error as the user types
     if (fieldErrors[name]) {
       setFieldErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -38,12 +40,23 @@ const ExhibitorLogin = () => {
       return;
     }
 
+    // ✅ 1.5. Captcha required before submitting
+    if (!captchaToken) {
+      Swal.fire({
+        icon: "warning",
+        title: "Captcha Required",
+        text: "Please complete the captcha before logging in.",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response = await ExhibitorAuthService.login(
         formData.username.trim(),
-        formData.password
+        formData.password,
+        captchaToken
       );
 
       // ✅ 2. Successful login — token present
@@ -71,6 +84,9 @@ const ExhibitorLogin = () => {
         text: message,
       });
 
+      recaptchaRef.current?.reset();
+      setCaptchaToken(null);
+
     } catch (error) {
       // ✅ 4. Network error or unexpected API failure
       const message =
@@ -83,6 +99,9 @@ const ExhibitorLogin = () => {
         title: "Login Failed",
         text: message,
       });
+
+      recaptchaRef.current?.reset();
+      setCaptchaToken(null);
     } finally {
       setLoading(false);
     }
@@ -128,7 +147,6 @@ const ExhibitorLogin = () => {
                 placeholder="Enter your username"
               />
             </div>
-            {/* ✅ Inline field error */}
             {fieldErrors.username && (
               <p className="text-red-500 text-xs mt-1">{fieldErrors.username}</p>
             )}
@@ -150,11 +168,18 @@ const ExhibitorLogin = () => {
                 placeholder="Enter your password"
               />
             </div>
-            {/* ✅ Inline field error */}
             {fieldErrors.password && (
               <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
             )}
           </div>
+
+          {/* Captcha */}
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+            onChange={(token) => setCaptchaToken(token)}
+            onExpired={() => setCaptchaToken(null)}
+          />
 
           <button
             type="submit"

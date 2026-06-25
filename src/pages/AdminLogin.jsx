@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 import AuthService from "../services/authService";
 
 const Login = () => {
@@ -12,6 +13,11 @@ const [formData, setFormData] =
         username: "",
         password: "",
     });
+
+const [captchaToken, setCaptchaToken] =
+    useState(null);
+
+const recaptchaRef = useRef(null);
 
 const handleChange = (e) => {
 
@@ -26,12 +32,18 @@ const handleSubmit = async (e) => {
 
     e.preventDefault();
 
+    if (!captchaToken) {
+        alert("Please complete the captcha.");
+        return;
+    }
+
     setLoading(true);
 
     const response =
         await AuthService.login(
             formData.username,
-            formData.password
+            formData.password,
+            captchaToken
         );
 
     setLoading(false);
@@ -50,6 +62,10 @@ const handleSubmit = async (e) => {
         alert(
             response.message
         );
+
+        // Tokens are single-use — reset so they can retry
+        recaptchaRef.current?.reset();
+        setCaptchaToken(null);
     }
 };
 
@@ -100,6 +116,13 @@ return (
                     }
                     className="w-full border rounded-lg px-4 py-3"
                     required
+                />
+
+                <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                    onChange={(token) => setCaptchaToken(token)}
+                    onExpired={() => setCaptchaToken(null)}
                 />
 
                 <button

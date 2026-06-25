@@ -9,6 +9,7 @@ import BulkUploadSuccessConfirmation from "../components/BulkUploadSuccessConfir
 import ExhibitorAuthService from "../services/exhibitorAuthService";
 import badgeService from "../services/badgeService";
 import DashboardService from "../services/dashboardService";
+import ExhibitorBadgeQuota from "../components/ExhibitorBadgeQuota";
 import api from "../utils/axios";
 import { downloadBadgePDF } from "../utils/badgePDF";
 import * as XLSX from "xlsx";
@@ -382,6 +383,7 @@ export default function Dashboard() {
         <div className="p-6">
 
           {/* Stats Banner */}
+
 <div
   className="rounded-2xl p-6 text-white bg-cover bg-center bg-no-repeat relative overflow-hidden"
   style={{ backgroundImage: "url('/images/banner.jpg')" }}
@@ -392,6 +394,14 @@ export default function Dashboard() {
       <div className="bg-white w-16 h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl">
         🎫
       </div>
+                {/* ── Badge Quota ── */}
+          <div className="bg-white rounded-2xl shadow mt-6 p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Your Badge Quota</h3>
+            <ExhibitorBadgeQuota refreshKey={registrations.length} />
+          </div>
+
+          {/* ── Cards ── */}
+          <div className="grid md:grid-cols-3 gap-6 mt-8"></div>
       <div>
         <h2 className="text-4xl font-bold">
           {dashboardLoading ? "..." : dashboardData?.confirmed}
