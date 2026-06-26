@@ -36,13 +36,11 @@ const QuotaBar = ({ used, allocated }) => {
 
 // ─── Badge Allocation Panel ───────────────────────────────────────────────────
 const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
-  const [allocations, setAllocations] = useState([]);   // current allocations from GET
-  const [ticketTypes, setTicketTypes] = useState([]);   // all active ticket types
+  const [allocations, setAllocations] = useState([]);
+  const [ticketTypes, setTicketTypes] = useState([]);
   const [loading, setLoading]         = useState(true);
-  const [saving, setSaving]           = useState(null); // ticket_type_id being saved
-
-  // form state: { [ticket_type_id]: { value: "", error: "" } }
-  const [inputs, setInputs] = useState({});
+  const [saving, setSaving]           = useState(null);
+  const [inputs, setInputs]           = useState({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,11 +50,11 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
         api.get("admin/tickets/"),
       ]);
 
-      const allocs   = Array.isArray(allocRes.data)
+      const allocs  = Array.isArray(allocRes.data)
         ? allocRes.data
         : allocRes.data?.results ?? [];
 
-      const tickets  = (Array.isArray(ticketRes.data)
+      const tickets = (Array.isArray(ticketRes.data)
         ? ticketRes.data
         : ticketRes.data?.results ?? []
       ).filter((t) => t.status === "active");
@@ -64,14 +62,13 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
       setAllocations(allocs);
       setTicketTypes(tickets);
 
-      // Pre-fill inputs from existing allocations
       const initInputs = {};
       tickets.forEach((t) => {
         const existing = allocs.find((a) => a.ticket_type === t.id || a.ticket_type_id === t.id);
         initInputs[t.id] = {
-          value: existing ? String(existing.allocated_count) : "",
+          value:   existing ? String(existing.allocated_count) : "",
           remarks: existing?.remarks ?? "",
-          error: "",
+          error:   "",
         };
       });
       setInputs(initInputs);
@@ -82,49 +79,60 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
     }
   }, [exhibitor.id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
+
+  // ── Real-time hint text ──────────────────────────────────────────────────────
+  const getHint = (ticket, inputVal) => {
+    const alloc          = allocations.find((a) => a.ticket_type === ticket.id || a.ticket_type_id === ticket.id);
+    const allocated      = alloc?.allocated_count ?? 0;
+    const used           = allocated - (alloc?.available_count ?? 0);
+    const globalUnalloc  = (ticket.total_tickets ?? 0) - (ticket.total_allocated ?? 0);
+    const maxNew         = globalUnalloc + allocated;
+
+    // Pool exhausted and this exhibitor has no holding
+    if (globalUnalloc <= 0 && allocated === 0) return null; // handled by disabled state
+
+    const raw = inputVal?.trim();
+    if (!raw) {
+      if (allocated > 0) {
+        return {
+          type: "mute",
+          text: `Enter a value ≥ ${allocated} (current). Max you can set: ${maxNew} (${globalUnalloc} unallocated + ${allocated} held).`,
+        };
+      }
+      return { type: "mute", text: `Up to ${maxNew} badge${maxNew !== 1 ? "s" : ""} available from the global pool.` };
+    }
+
+    const n = parseInt(raw, 10);
+    if (isNaN(n) || !/^\d+$/.test(raw)) return { type: "error", text: "Enter a valid whole number." };
+    if (n < 1)                           return { type: "error", text: "Must be at least 1." };
+    if (allocated > 0 && n < allocated)  return { type: "error", text: `Must be ≥ ${allocated} — already ${used} badge${used !== 1 ? "s" : ""} in use.` };
+    if (n > maxNew)                      return { type: "error", text: `Only ${maxNew} available (${globalUnalloc} unallocated + ${allocated} held). You entered ${n}.` };
+
+    const remaining = maxNew - n;
+    return {
+      type: "ok",
+      text: `✓ ${n} badge${n !== 1 ? "s" : ""} — ${remaining} will remain unallocated in the global pool.`,
+    };
+  };
+
+  const isSaveAllowed = (ticket, inputVal) => {
+    const hint = getHint(ticket, inputVal);
+    return hint?.type === "ok";
+  };
 
   const handleSave = async (ticketType) => {
-    const tid   = ticketType.id;
-    const raw   = (inputs[tid]?.value ?? "").trim();
+    const tid     = ticketType.id;
+    const raw     = (inputs[tid]?.value ?? "").trim();
     const remarks = inputs[tid]?.remarks ?? "";
 
-    // Validation
-    if (!raw) {
-      setInputs((p) => ({ ...p, [tid]: { ...p[tid], error: "Enter a number." } }));
-      return;
-    }
-    if (!/^\d+$/.test(raw) || parseInt(raw, 10) < 1) {
-      setInputs((p) => ({ ...p, [tid]: { ...p[tid], error: "Must be a positive number." } }));
+    const hint = getHint(ticketType, raw);
+    if (hint?.type !== "ok") {
+      setInputs((p) => ({ ...p, [tid]: { ...p[tid], error: hint?.text ?? "Invalid value." } }));
       return;
     }
 
     const count = parseInt(raw, 10);
-
-    // Client-side guard: can't exceed the unallocated pool for this ticket type
-    const unallocatedForOthers =
-      (ticketType.total_tickets ?? 0) - (ticketType.total_allocated ?? 0);
-
-    const existingAlloc = allocations.find(
-      (a) => a.ticket_type === tid || a.ticket_type_id === tid
-    );
-    const currentlyHeld = existingAlloc?.allocated_count ?? 0;
-
-    // What this exhibitor can take = what's unallocated + what they already hold
-    const maxAllowable = unallocatedForOthers + currentlyHeld;
-
-    if (count > maxAllowable) {
-      setInputs((p) => ({
-        ...p,
-        [tid]: {
-          ...p[tid],
-          error: `Only ${maxAllowable} badge${maxAllowable !== 1 ? "s" : ""} available (${unallocatedForOthers} unallocated + ${currentlyHeld} already held by this exhibitor).`,
-        },
-      }));
-      return;
-    }
 
     setSaving(tid);
     try {
@@ -136,8 +144,8 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
       });
 
       setInputs((p) => ({ ...p, [tid]: { ...p[tid], error: "" } }));
-      await load();    // refresh allocations + recompute inputs
-      onSaved?.();     // refresh parent table
+      await load();
+      onSaved?.();
 
       Swal.fire({
         icon: "success",
@@ -149,7 +157,7 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
-        err?.response?.data?.error ||
+        err?.response?.data?.error   ||
         "Failed to save allocation.";
       setInputs((p) => ({ ...p, [tid]: { ...p[tid], error: msg } }));
     } finally {
@@ -195,31 +203,25 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-slate-500">
-                Set how many badges of each type this exhibitor can distribute. You can only increase an allocation, not reduce it below the number already used.
+                Set how many badges of each type this exhibitor can distribute. Allocations can only increase, not drop below what's already used.
               </p>
 
               {ticketTypes.map((ticket) => {
-                const alloc   = allocations.find(
-                  (a) => a.ticket_type === ticket.id || a.ticket_type_id === ticket.id
-                );
-                const allocated   = alloc?.allocated_count ?? 0;
-                const used        = alloc?.used_count       ?? alloc?.available_count != null
-                  ? (allocated - (alloc?.available_count ?? 0))
-                  : 0;
-                const available   = alloc?.available_count ?? 0;
-                const input       = inputs[ticket.id] ?? { value: "", remarks: "", error: "" };
-                const isSaving    = saving === ticket.id;
-
-                // Unallocated from global pool (what's still free to assign)
-                const globalUnallocated =
-                  (ticket.total_tickets ?? 0) - (ticket.total_allocated ?? 0);
-                const maxNew = globalUnallocated + allocated; // can't exceed this
+                const alloc          = allocations.find((a) => a.ticket_type === ticket.id || a.ticket_type_id === ticket.id);
+                const allocated      = alloc?.allocated_count ?? 0;
+                const used           = allocated - (alloc?.available_count ?? 0);
+                const available      = alloc?.available_count ?? 0;
+                const input          = inputs[ticket.id] ?? { value: "", remarks: "", error: "" };
+                const isSaving       = saving === ticket.id;
+                const globalUnalloc  = (ticket.total_tickets ?? 0) - (ticket.total_allocated ?? 0);
+                const maxNew         = globalUnalloc + allocated;
+                const poolExhausted  = globalUnalloc <= 0 && allocated === 0;
+                const hint           = getHint(ticket, input.value);
+                const canSave        = isSaveAllowed(ticket, input.value);
 
                 return (
-                  <div
-                    key={ticket.id}
-                    className="border border-slate-200 rounded-xl overflow-hidden"
-                  >
+                  <div key={ticket.id} className="border border-slate-200 rounded-xl overflow-hidden">
+
                     {/* Ticket header */}
                     <div className="bg-slate-50 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -229,14 +231,16 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                         </span>
                       </div>
                       <div className="text-xs text-slate-500">
-                        Global pool: <span className="font-semibold text-blue-600">{ticket.total_tickets ?? 0}</span>
-                        {" · "}Unallocated: <span className={`font-semibold ${globalUnallocated <= 0 ? "text-red-500" : "text-emerald-600"}`}>
-                          {Math.max(0, globalUnallocated)}
+                        Global pool:{" "}
+                        <span className="font-semibold text-blue-600">{ticket.total_tickets ?? 0}</span>
+                        {" · "}Unallocated:{" "}
+                        <span className={`font-semibold ${globalUnalloc <= 0 ? "text-red-500" : "text-emerald-600"}`}>
+                          {Math.max(0, globalUnalloc)}
                         </span>
                       </div>
                     </div>
 
-                    {/* Allocation stats (only if there's an existing allocation) */}
+                    {/* Allocation stats */}
                     {allocated > 0 && (
                       <div className="px-4 py-3 grid grid-cols-3 gap-3 border-b border-slate-100 bg-white">
                         <div className="text-center">
@@ -273,11 +277,13 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                               <span className="text-slate-400 ml-1">(current: {allocated})</span>
                             )}
                           </label>
+
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
                               min={allocated > 0 ? allocated : 1}
                               max={maxNew}
+                              disabled={poolExhausted}
                               value={input.value}
                               onChange={(e) =>
                                 setInputs((p) => ({
@@ -285,13 +291,20 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                                   [ticket.id]: { ...p[ticket.id], value: e.target.value, error: "" },
                                 }))
                               }
-                              placeholder={allocated > 0 ? `${allocated} (min)` : "Enter count"}
-                              className={`w-32 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 ${
-                                input.error ? "border-red-400" : ""
+                              placeholder={
+                                poolExhausted
+                                  ? "Pool exhausted"
+                                  : allocated > 0
+                                  ? `${allocated} (min)`
+                                  : "Enter count"
+                              }
+                              className={`w-36 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed ${
+                                input.error || hint?.type === "error" ? "border-red-400" : ""
                               }`}
                             />
                             <input
                               type="text"
+                              disabled={poolExhausted}
                               value={input.remarks}
                               onChange={(e) =>
                                 setInputs((p) => ({
@@ -300,11 +313,11 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                                 }))
                               }
                               placeholder="Remarks (optional)"
-                              className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                              className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed"
                             />
                             <button
                               onClick={() => handleSave(ticket)}
-                              disabled={isSaving || !input.value}
+                              disabled={isSaving || poolExhausted || !canSave}
                               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition shrink-0"
                             >
                               {isSaving ? (
@@ -316,24 +329,36 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                             </button>
                           </div>
 
+                          {/* Real-time hint */}
+                          {hint && (
+                            <p
+                              className={`text-xs mt-1.5 ${
+                                hint.type === "ok"
+                                  ? "text-emerald-600"
+                                  : hint.type === "error"
+                                  ? "text-red-500"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              {hint.text}
+                            </p>
+                          )}
+
+                          {/* Server-side error (overrides hint) */}
                           {input.error && (
                             <p className="text-red-500 text-xs mt-1">{input.error}</p>
                           )}
 
-                          {allocated > 0 && (
-                            <p className="text-xs text-amber-600 mt-1">
-                              ↑ Can only increase — already {used} badge{used !== 1 ? "s" : ""} in use.
-                            </p>
-                          )}
-
-                          {globalUnallocated <= 0 && allocated === 0 && (
-                            <p className="text-xs text-red-500 mt-1">
+                          {/* Pool exhausted notice */}
+                          {poolExhausted && (
+                            <p className="text-xs text-red-500 mt-1.5">
                               No unallocated badges remain in the global pool. Increase the total in Ticket Management first.
                             </p>
                           )}
                         </div>
                       </div>
                     </div>
+
                   </div>
                 );
               })}
