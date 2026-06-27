@@ -126,7 +126,7 @@ const TicketManagement = () => {
 
     try {
       await TicketService.createTicket(value);
-      Swal.fire("Success", "Ticket type created successfully.", "success");
+      await Swal.fire("Success", "Ticket type created successfully.", "success");
       loadTickets();
     } catch (error) {
       Swal.fire("Error", getServiceErrorMessage(error, "Failed to create ticket"), "error");
@@ -220,9 +220,14 @@ const TicketManagement = () => {
   };
 
   const deleteTicket = async (id) => {
+    const ticket = tickets.find((t) => t.id === id);
+    const hasAllocations = (ticket?.total_allocated ?? 0) > 0;
+
     const result = await Swal.fire({
       title: "Delete Ticket Type?",
-      text: "This action cannot be undone.",
+      html: hasAllocations
+        ? `<p style="color:#374151">This ticket type has <strong style="color:#dc2626">${ticket.total_allocated} badge(s)</strong> allocated to exhibitors. Deleting it may affect their registrations.</p>`
+        : "<p>This action cannot be undone.</p>",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -262,8 +267,8 @@ const TicketManagement = () => {
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
             <Ticket size={20} className="text-blue-600" />
           </div>
@@ -273,7 +278,7 @@ const TicketManagement = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             onClick={loadTickets}
             disabled={loading}
@@ -294,7 +299,7 @@ const TicketManagement = () => {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map(({ label, value, color }) => (
           <div key={label} className="bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-3">
             <p className="text-xs text-slate-400 uppercase tracking-wide mb-1 leading-tight">{label}</p>
@@ -318,8 +323,8 @@ const TicketManagement = () => {
       </div>
 
       {/* ── Table ── */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+          {loading ? (
           <div className="flex items-center justify-center py-20 text-slate-400">
             <RefreshCw size={20} className="animate-spin mr-2" />
             Loading tickets…
