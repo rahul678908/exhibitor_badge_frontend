@@ -242,8 +242,8 @@ export default function SendInvitationModal({ onClose, onSuccess }) {
   const hasAnyError = errors.some((e) => Object.keys(e).length > 0);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-white w-full max-w-full sm:max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]">
 
         {/* Header */}
         <div

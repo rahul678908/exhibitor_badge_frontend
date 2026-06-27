@@ -594,9 +594,9 @@ import { useState, useRef, useEffect } from "react";
 
     // ── Render ─────────────────────────────────────────────────────
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-        <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-white w-full max-w-full sm:max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+          
           {/* Header */}
           <div
             className="flex items-center justify-between px-6 py-4 rounded-t-2xl"

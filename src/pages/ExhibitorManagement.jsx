@@ -298,11 +298,11 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                                   ? `${allocated} (min)`
                                   : "Enter count"
                               }
-                              className={`w-36 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed ${
+                              className={`w-full sm:w-36 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed ${
                                 input.error || hint?.type === "error" ? "border-red-400" : ""
                               }`}
                             />
-                            <input
+                              <input
                               type="text"
                               disabled={poolExhausted}
                               value={input.remarks}
@@ -313,14 +313,14 @@ const BadgeAllocationPanel = ({ exhibitor, onClose, onSaved }) => {
                                 }))
                               }
                               placeholder="Remarks (optional)"
-                              className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                            />
+                              className="w-full sm:flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                />
                             <button
                               onClick={() => handleSave(ticket)}
                               disabled={isSaving || poolExhausted || !canSave}
-                              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition shrink-0"
-                            >
-                              {isSaving ? (
+                                    className="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition w-full sm:w-auto sm:shrink-0"
+                                  >
+                                  {isSaving ? (
                                 <RefreshCw size={13} className="animate-spin" />
                               ) : (
                                 <Save size={13} />
@@ -604,8 +604,8 @@ const ExhibitorManagement = () => {
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
             <Users size={20} className="text-blue-600" />
           </div>
@@ -615,8 +615,8 @@ const ExhibitorManagement = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
             onClick={loadExhibitors}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
@@ -636,18 +636,18 @@ const ExhibitorManagement = () => {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-4">
-        {stats.map(({ label, value, color }) => (
-          <div key={label} className="bg-white rounded-xl border border-slate-100 shadow-sm px-5 py-4">
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">{label}</p>
+          <div className="grid grid-cols-3 gap-3">
+            {stats.map(({ label, value, color }) => (
+              <div key={label} className="bg-white rounded-xl border border-slate-100 shadow-sm px-3 py-3 sm:px-5 sm:py-4">
+              <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">{label}</p>
             <p className={`text-2xl font-bold ${color}`}>{value}</p>
           </div>
         ))}
       </div>
 
       {/* ── Table ── */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+          {loading ? (
           <div className="flex items-center justify-center py-20 text-slate-400">
             <RefreshCw size={20} className="animate-spin mr-2" />
             Loading exhibitors…
@@ -658,8 +658,8 @@ const ExhibitorManagement = () => {
             <p className="text-sm">No exhibitors yet. Create one to get started.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
+          <table className="w-full min-w-[700px] text-sm">
+              <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 {["Company", "Contact Person", "Email", "Status", "Actions"].map((h) => (
                   <th

@@ -89,11 +89,16 @@ export default function Dashboard() {
 
   const loadTickets = async () => {
     try {
-      const res = await api.get("admin/tickets/");
-      setTickets(res.data.filter((t) => t.status === "active"));
-    } catch {}
-  };
-
+        const res = await api.get("exhibitor/my-allocations/");
+        // my-allocations returns BadgeAllocation rows; map to the shape tickets filters expect
+        setTickets(
+          res.data
+            .filter((a) => a.available_count > 0)
+            .map((a) => ({ id: a.ticket_type, ticket_name: a.ticket_name, status: "active" }))
+        );
+        } catch {}
+      };
+      
   // ── Edit ──────────────────────────────────────────────────────
   const handleEdit = (item) => {
     setEditingRegistration(item);
@@ -310,15 +315,16 @@ export default function Dashboard() {
     }
   };
 
-  {sidebarOpen && (
-  <div
-    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-    onClick={() => setSidebarOpen(false)}
-  />
-)}
-
   return (
       <div className="flex min-h-screen bg-gray-100 overflow-x-hidden">
+
+        {/* ── Mobile overlay ── */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
       {/* ── Sidebar ── */}
         <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#180021] text-white min-h-screen transform transition-transform duration-300
@@ -349,8 +355,8 @@ export default function Dashboard() {
       <main className="flex-1 overflow-x-hidden">
 
         {/* Navbar */}
-        <header className="bg-purple-800 h-16 px-8 flex items-center justify-between text-white">
-          <div className="flex gap-4 items-center">
+          <header className="bg-purple-800 min-h-16 px-4 lg:px-8 flex flex-wrap items-center justify-between gap-3 py-3 text-white">
+            <div className="flex gap-2 items-center">
             <button
               className="lg:hidden text-white mr-3"
               onClick={() => setSidebarOpen(true)}
@@ -369,8 +375,10 @@ export default function Dashboard() {
               GULFOOD 2026
             </div>
           </div>
-          <div className="flex items-center gap-5">
-            <span className="font-medium">Welcome, {user?.username || user?.name || "User"}</span>
+        <div className="flex items-center gap-3">
+          <span className="font-medium hidden sm:block truncate max-w-[140px]">
+            Welcome, {user?.username || user?.name || "User"}
+          </span>
             <button
               onClick={handleLogout}
               className="border border-purple-400 px-4 py-2 rounded flex items-center gap-2 hover:bg-purple-700 transition"
@@ -391,17 +399,9 @@ export default function Dashboard() {
   {/* ── Top row ── */}
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-8">
-      <div className="bg-white w-16 h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl">
+    <div className="bg-white w-16 h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl">
         🎫
       </div>
-                {/* ── Badge Quota ── */}
-          <div className="bg-white rounded-2xl shadow mt-6 p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Your Badge Quota</h3>
-            <ExhibitorBadgeQuota refreshKey={registrations.length} />
-          </div>
-
-          {/* ── Cards ── */}
-          <div className="grid md:grid-cols-3 gap-6 mt-8"></div>
       <div>
         <h2 className="text-4xl font-bold">
           {dashboardLoading ? "..." : dashboardData?.confirmed}
@@ -464,8 +464,15 @@ export default function Dashboard() {
     </div>
   )}
 </div>
+
+          {/* ── Badge Quota ── */}
+          <div className="bg-white rounded-2xl shadow mt-6 p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Your Badge Quota</h3>
+            <ExhibitorBadgeQuota refreshKey={registrations.length} />
+          </div>
+
           {/* Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
             <div className="bg-white rounded-2xl shadow p-8">
               <div className="w-14 h-14 rounded-xl bg-pink-100 flex items-center justify-center text-2xl text-pink-500"><FaUserPlus /></div>
               <h3 className="font-semibold text-16px mt-6">Create Single Badge</h3>
@@ -496,7 +503,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-2xl shadow mt-8 p-6">
 
             {/* Table Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
               <div>
                 <h2 className="text-2xl font-bold">Registrations</h2>
                 {selectedIds.length > 0 && (
@@ -506,11 +513,11 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                {/* ── NEW: Delete by batch button ── */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* ── Delete by batch button ── */}
                 <button
                   onClick={() => setShowBatchDeleteModal(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium border border-red-200 text-red-600 hover:bg-red-50 transition"
+                  className="flex items-center gap-2 px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg font-medium border border-red-200 text-red-600 hover:bg-red-50 transition text-sm"
                 >
                   <FaTrash size={13} />
                   Delete by Batch
