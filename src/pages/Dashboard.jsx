@@ -397,20 +397,23 @@ export default function Dashboard() {
   style={{ backgroundImage: "url('/images/banner.jpg')" }}
 >
   {/* ── Top row ── */}
-  <div className="flex items-center justify-between">
-    <div className="flex items-center gap-8">
-    <div className="bg-white w-16 h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+    <div className="flex items-center gap-4 sm:gap-8 flex-wrap">
+      <div className="bg-white w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center text-pink-600 text-2xl shrink-0">
         🎫
       </div>
+
       <div>
-        <h2 className="text-4xl font-bold">
+        <h2 className="text-3xl sm:text-4xl font-bold">
           {dashboardLoading ? "..." : dashboardData?.confirmed}
-          <span className="text-lg">
+          <span className="text-base sm:text-lg">
             /{dashboardLoading ? "..." : dashboardData?.allocated_badges}
           </span>
         </h2>
         <p className="text-sm mt-1">Allocated Badges</p>
       </div>
+
       <div className="text-sm space-y-1">
         <p>Confirmed {dashboardData?.confirmed || 0}</p>
         <p>Pending   {dashboardData?.pending   || 0}</p>
@@ -418,14 +421,16 @@ export default function Dashboard() {
       </div>
     </div>
 
-    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-green-600 font-bold text-xl">
+    {/* Available badge circle — moves below on mobile, right on desktop */}
+    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white flex items-center justify-center text-green-600 font-bold text-lg sm:text-xl shrink-0 self-start sm:self-auto">
       {dashboardLoading ? "..." : dashboardData?.available_badges}
     </div>
+
   </div>
 
   {/* ── Ticket balance breakdown ── */}
   {!dashboardLoading && dashboardData?.ticket_breakdown?.length > 0 && (
-    <div className="mt-5 border-t border-white/30 pt-4 flex flex-wrap gap-3">
+    <div className="mt-5 border-t border-white/30 pt-4 grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap gap-3">
       {dashboardData.ticket_breakdown.map((tt) => {
         const pct = tt.allocated > 0
           ? Math.round((tt.used / tt.allocated) * 100)
@@ -433,7 +438,7 @@ export default function Dashboard() {
         const low = tt.available <= 5;
 
         return (
-          <div key={tt.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 min-w-[160px] flex-1">
+          <div key={tt.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 lg:min-w-[160px] lg:flex-1">
 
             {/* ticket name */}
             <p className="text-xs font-semibold uppercase tracking-wide text-white/70 truncate">
@@ -441,7 +446,7 @@ export default function Dashboard() {
             </p>
 
             {/* big available number */}
-            <p className={`text-2xl font-bold mt-1 ${low ? "text-red-300" : "text-green-300"}`}>
+            <p className={`text-xl sm:text-2xl font-bold mt-1 ${low ? "text-red-300" : "text-green-300"}`}>
               {tt.available}
               <span className="text-sm font-normal text-white/60"> / {tt.allocated}</span>
             </p>
